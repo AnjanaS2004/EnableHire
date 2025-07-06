@@ -50,3 +50,23 @@
 .resume-form button:hover {
   background-color: #00796b;
 }
+.input-with-mic {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.mic-button {
+  background-color: #f1f5f9;
+  border: 1px solid #ccc;
+  padding: 5px 10px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.3s ease;
+}
+
+.mic-button:hover {
+  background-color: #e0e7ff;
+}

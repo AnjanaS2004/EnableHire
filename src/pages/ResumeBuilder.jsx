@@ -4,6 +4,17 @@ import { db, auth } from "../firebase";
 import { doc, setDoc } from "firebase/firestore";
 import "../styles/resume.css";
 
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+
+if (recognition) {
+  recognition.lang = "en-US";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = false;
+}
+
 function ResumeBuilder() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -14,16 +25,16 @@ function ResumeBuilder() {
     school: "",
     degree: "",
     gradYear: "",
-     company: "", 
-     jobTitle: "", 
-     jobDuration: "", 
-     jobDescription: "",
-     skills: "",
+    company: "",
+    jobTitle: "",
+    jobDuration: "",
+    jobDescription: "",
+    skills: "",
     projectTitle: "",
     projectDescription: ""
-
   });
 
+  const [isListening, setIsListening] = useState(false);
 
   const speak = (text) => {
     const msg = new SpeechSynthesisUtterance(text);
@@ -32,23 +43,62 @@ function ResumeBuilder() {
     window.speechSynthesis.speak(msg);
   };
 
+  const listenForField = (fieldName, message) => {
+    if (!recognition || isListening) return;
+
+    speak(message);
+    setIsListening(true);
+
+    const waitForTTS = setInterval(() => {
+      if (!window.speechSynthesis.speaking) {
+        clearInterval(waitForTTS);
+
+        try {
+          recognition.start();
+        } catch (error) {
+          console.warn("Recognition start error:", error.message);
+        }
+      }
+    }, 300);
+
+    recognition.onresult = (event) => {
+      const spokenText = event.results[0][0].transcript;
+
+      let processedText = spokenText;
+      if (fieldName === "phone") {
+        processedText = spokenText.replace(/\D/g, ""); // keep only numbers
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        [fieldName]: processedText
+      }));
+
+      speak(`You said: ${processedText}`);
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      speak("Sorry, I couldn't understand.");
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+  };
+
   useEffect(() => {
-    speak("Welcome to Resume Builder. Please fill in your personal information.");
+    speak("Welcome to Resume Builder. Hover over each field and speak to fill it.");
   }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleHover = (fieldName, message) => {
-    if (formData[fieldName].trim() === "") {
-      speak(message);
-    }
-  };
-
   const handleSave = async () => {
     const user = auth.currentUser;
-
     if (!user) {
       alert("Please log in to save your resume.");
       return;
@@ -60,174 +110,60 @@ function ResumeBuilder() {
         personalInfo: formData,
         updatedAt: new Date()
       });
-     alert("Saved successfully!");
-     navigate("/preview", { state: { formData } });
-
+      alert("Saved successfully!");
+      navigate("/preview", { state: { formData } });
     } catch (error) {
       console.error("Error saving resume:", error);
       alert("Something went wrong while saving.");
     }
   };
 
+  const renderInput = (label, name, type = "text", isTextarea = false) => (
+    <label>
+      {label}
+      {isTextarea ? (
+        <textarea
+          name={name}
+          value={formData[name]}
+          onChange={handleChange}
+          onMouseEnter={() => listenForField(name, `Enter your ${label}`)}
+        />
+      ) : (
+        <input
+          type={type}
+          name={name}
+          value={formData[name]}
+          onChange={handleChange}
+          onMouseEnter={() => listenForField(name, `Enter or speak your ${label}`)}
+        />
+      )}
+    </label>
+  );
+
   return (
     <div className="resume-builder-container">
       <h2>🧰 Resume Builder - Step 1: Personal Info</h2>
-
       <form className="resume-form">
-        <label>
-          Full Name:
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            onMouseEnter={() => handleHover("name", "Enter your full name")}
-          />
-        </label>
+        {renderInput("Full Name", "name")}
+        {renderInput("Email", "email", "email")}
+        {renderInput("Phone", "phone", "tel")}
+        {renderInput("Location", "location")}
 
-        <label>
-          Email:
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            onMouseEnter={() => handleHover("email", "Enter your email address")}
-          />
-        </label>
+        <h3>🎓 Education</h3>
+        {renderInput("School / University", "school")}
+        {renderInput("Degree", "degree")}
+        {renderInput("Year of Passing", "gradYear")}
 
-        <label>
-          Phone:
-          <input
-            type="tel"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            onMouseEnter={() => handleHover("phone", "Enter your phone number")}
-          />
-        </label>
+        <h3>💼 Work Experience</h3>
+        {renderInput("Company Name", "company")}
+        {renderInput("Job Title", "jobTitle")}
+        {renderInput("Duration", "jobDuration")}
+        {renderInput("Job Description", "jobDescription", "text", true)}
 
-        <label>
-          Location:
-          <input
-            type="text"
-            name="location"
-            value={formData.location}
-            onChange={handleChange}
-            onMouseEnter={() => handleHover("location", "Enter your location or city")}
-          />
-        </label>
-      <h3>🎓 Education</h3>
-
-<label>
-  School / University:
-  <input
-    type="text"
-    name="school"
-    value={formData.school || ""}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("school", "Enter your school or university name")}
-  />
-</label>
-
-<label>
-  Degree:
-  <input
-    type="text"
-    name="degree"
-    value={formData.degree || ""}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("degree", "Enter your degree or qualification")}
-  />
-</label>
-
-<label>
-  Year of Passing:
-  <input
-    type="text"
-    name="gradYear"
-    value={formData.gradYear || ""}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("gradYear", "Enter your year of passing")}
-  />
-</label>
-<h3>💼 Work Experience</h3>
-
-<label>
-  Company Name:
-  <input
-    type="text"
-    name="company"
-    value={formData.company}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("company", "Enter your company name")}
-  />
-</label>
-
-<label>
-  Job Title:
-  <input
-    type="text"
-    name="jobTitle"
-    value={formData.jobTitle}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("jobTitle", "Enter your job title")}
-  />
-</label>
-
-<label>
-  Duration:
-  <input
-    type="text"
-    name="jobDuration"
-    value={formData.jobDuration}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("jobDuration", "Enter duration of your work")}
-  />
-</label>
-
-<label>
-  Description:
-  <textarea
-    name="jobDescription"
-    value={formData.jobDescription}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("jobDescription", "Describe your role or responsibilities")}
-  />
-</label>
-<h3>🧠 Skills & Projects</h3>
-
-<label>
-  Skills (comma separated):
-  <input
-    type="text"
-    name="skills"
-    value={formData.skills}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("skills", "Enter your skills separated by commas")}
-  />
-</label>
-
-<label>
-  Project Title:
-  <input
-    type="text"
-    name="projectTitle"
-    value={formData.projectTitle}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("projectTitle", "Enter your project title")}
-  />
-</label>
-
-<label>
-  Project Description:
-  <textarea
-    name="projectDescription"
-    value={formData.projectDescription}
-    onChange={handleChange}
-    onMouseEnter={() => handleHover("projectDescription", "Describe your project")}
-  />
-</label>
+        <h3>🧠 Skills & Projects</h3>
+        {renderInput("Skills (comma separated)", "skills")}
+        {renderInput("Project Title", "projectTitle")}
+        {renderInput("Project Description", "projectDescription", "text", true)}
 
         <button type="button" onClick={handleSave}>
           💾 Save & Continue
@@ -235,7 +171,6 @@ function ResumeBuilder() {
       </form>
     </div>
   );
-  
 }
 
 export default ResumeBuilder;

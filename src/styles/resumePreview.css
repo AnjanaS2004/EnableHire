@@ -2,9 +2,11 @@
 
 .preview-container {
   padding: 2rem;
-  text-align: center;
   background-color: #fff8f5;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .resume-card {
@@ -12,22 +14,35 @@
   color: #1d2d2f;
   border: 2px solid #ffb7a8;
   border-radius: 16px;
-  padding: 2rem;
-  width: 700px;
-  margin: 0 auto;
+  padding: 2rem 3rem;
+  width: 100%;
+  max-width: 750px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
   text-align: left;
+  line-height: 1.6;
+  font-family: 'Segoe UI', sans-serif;
 }
 
 .resume-card h1 {
   font-size: 2rem;
   color: #008080;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.resume-card p {
+  margin: 0.3rem 0;
 }
 
 .resume-card h2 {
-  margin-top: 1.5rem;
+  margin-top: 1.8rem;
   color: #f2877d;
+  font-size: 1.3rem;
+  border-bottom: 1px solid #fcd3cd;
+  padding-bottom: 0.2rem;
+}
+
+.resume-section {
+  margin-top: 1.2rem;
 }
 
 .print-btn {
